@@ -1,4 +1,3 @@
-#pragma once
 #include "interpretator-flags.hpp"
 
 namespace flags{

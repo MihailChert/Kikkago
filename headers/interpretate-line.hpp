@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include <string>
 #include "better_enum.hpp"
 

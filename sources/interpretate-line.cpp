@@ -1,5 +1,3 @@
-#pragma once
-
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -407,6 +405,16 @@ short interpretline(std::string progline){
 				if(respons != ParseStatus::OK) return respons;
 				break;
 			}
+			case InterpretatorKeyword::print:
+			case InterpretatorKeyword::sum:
+			case InterpretatorKeyword::sub:
+			case InterpretatorKeyword::mult:
+			case InterpretatorKeyword::div:
+			case InterpretatorKeyword::pow:
+
+				respons = manageHightLevelFunc(iss, operation);
+				if(respons != ParseStatus::OK) return respons;
+				break;
 			default:
 				return ParseStatus::UD_OPERATION;
 

@@ -1,5 +1,3 @@
-#pragma once
-
 #include "interpretator-args.hpp"
 
 namespace args{

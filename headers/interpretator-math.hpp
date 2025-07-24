@@ -1,3 +1,6 @@
+#pragma once
+
+
 #include <vector>
 
 namespace interpretator_math{
