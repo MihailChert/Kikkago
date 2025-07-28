@@ -343,6 +343,356 @@ short manageCreateHightLevelVar(std::istringstream& iss, const InterpretatorKeyw
 	return ParseStatus::UD_OPERATION;
 }
 
+void printArrs(const std::string& varname){
+	std::cout << "[ ";
+	if (vars::isiarr(varname)) {
+		for (const auto& str : vars::iarrs[varname]) {
+			std::cout << str << " ";
+		}
+	} else if (vars::isfarr(varname)) {
+		for (const auto& str : vars::farrs[varname]) {
+			std::cout << str << " ";
+		}
+	} else if (vars::isdarr(varname)) {
+		for (const auto& str : vars::darrs[varname]) {
+			std::cout << str << " ";
+		}
+	} else if (vars::isbarr(varname)) {
+		for (const auto& str : vars::barrs[varname]) {
+			std::cout << str << " ";
+		}
+	} else if (vars::iscarr(varname)) {
+		for (const auto& str : vars::carrs[varname]) {
+			std::cout << str << " ";
+		}
+	} else if (vars::issarr(varname)) {
+		for (const auto& str : vars::sarrs[varname]) {
+			std::cout << str << " ";
+		}
+	}
+	std::cout << "]" << std::endl;
+}
+
+void printVar(const std::string& varname){
+	if (vars::isint(varname)) {
+		std::cout << vars::vars[varname] << std::endl;
+	} else if (vars::isfloat(varname)) {
+		std::cout << vars::fvars[varname] << std::endl;
+	} else if (vars::isdouble(varname)) {
+		std::cout << vars::dvars[varname] << std::endl;
+	} else if (vars::ischar(varname)) {
+		std::cout << vars::cvars[varname] << std::endl;
+	} else if (vars::isbool(varname)) {
+		std::cout << vars::bools[varname] << std::endl;
+	} else if (vars::isstring(varname)) {
+		std::cout << vars::strings[varname] << std::endl;
+	}
+}
+
+template<typename T>
+T tryParse(const std::string& varname, bool include_arrs=true){
+	if(vars::isarray(varname) && !include_arrs){
+		throw std::invalid_argument("Cant interpretate argument like array.");
+	}
+	return T{};
+}
+
+template<>
+int tryParse(const std::string& varname, bool include_arrs){
+	if(vars::isarray(varname) && !include_arrs){
+		throw std::invalid_argument("Cant interpretate argument like array.");
+	}
+	try{
+		return std::stoi(varname);
+	}catch(const std::invalid_argument& e){
+		if(vars::isnotdeclared(varname)){
+			throw e;
+		}
+	}
+	if(vars::isint(varname)){
+		return vars::vars[varname];
+	}else if(vars::isfloat(varname)){
+		return static_cast<int>(vars::fvars[varname]);
+	}else if(vars::isdouble(varname)){
+		return static_cast<int>(vars::dvars[varname]);
+	}
+	throw std::invalid_argument("Cant interpretate argument.");
+}
+
+template<>
+float tryParse(const std::string& varname, bool include_arrs){
+	if(vars::isarray(varname) && !include_arrs){
+		throw std::invalid_argument("Cant interpretate argument like array.");
+	}
+	try{
+		return std::stoi(varname);
+	}catch(const std::invalid_argument& e){
+		if(vars::isnotdeclared(varname)){
+			throw e;
+		}
+	}
+	if(vars::isint(varname)){
+		return static_cast<float>(vars::vars[varname]);
+	}else if(vars::isfloat(varname)){
+		return static_cast<float>(vars::fvars[varname]);
+	}else if(vars::isdouble(varname)){
+		return static_cast<float>(vars::dvars[varname]);
+	}
+	throw std::invalid_argument("Cant interpretate argument.");
+}
+
+template<>
+double tryParse(const std::string& varname, bool include_arrs){
+	if(vars::isarray(varname) && !include_arrs){
+		throw std::invalid_argument("Cant interpretate argument like array.");
+	}
+	try{
+		return std::stoi(varname);
+	}catch(const std::invalid_argument& e){
+		if(vars::isnotdeclared(varname)){
+			throw e;
+		}
+	}
+	if(vars::isint(varname)){
+		return static_cast<double>(vars::vars[varname]);
+	}else if(vars::isfloat(varname)){
+		return static_cast<double>(vars::fvars[varname]);
+	}else if(vars::isdouble(varname)){
+		return static_cast<double>(vars::dvars[varname]);
+	}
+	throw std::invalid_argument("Cant interpretate argument.");
+}
+
+template<>
+std::string tryParse(const std::string& varname, bool include_arrs){
+	if(vars::isarray(varname) && !include_arrs){
+		throw std::invalid_argument("Cant interpretate argument like array.");
+	}
+	if(vars::isnotdeclared(varname)){
+		return varname;
+	}
+	if(vars::isstring(varname)){
+		return vars::strings[varname];
+	}
+	if(vars::isint(varname)){
+		return std::to_string(vars::vars[varname]);
+	}
+	if(vars::isfloat(varname)){
+		return std::to_string(vars::fvars[varname]);
+	}
+	if(vars::isdouble(varname)){
+		return std::to_string(vars::dvars[varname]);
+	}
+	throw std::invalid_argument("Cant interpretate argument.");
+}
+
+short sumArrs(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isiarr(varname)){
+		try{
+			interpretator_math::sumArray<int>(vars::iarrs[varname], tryParse<int>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isfarr(varname)){
+		try{
+			interpretator_math::sumArray<float>(vars::farrs[varname], tryParse<float>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isdarr(varname)){
+		try{
+			interpretator_math::sumArray<double>(vars::darrs[varname], tryParse<double>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}
+	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+}
+
+short sumVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] += tryParse<int>(varname2, false);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] += tryParse<float>(varname2, false);
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] += tryParse<double>(varname2, false);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short subArrs(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isiarr(varname)){
+		try{
+			interpretator_math::subArray<int>(vars::iarrs[varname], tryParse<int>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isfarr(varname)){
+		try{
+			interpretator_math::subArray<float>(vars::farrs[varname], tryParse<float>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isdarr(varname)){
+		try{
+			interpretator_math::subArray<double>(vars::darrs[varname], tryParse<double>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}
+	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+}
+
+short subVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] -= tryParse<int>(varname2, false);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] -= tryParse<float>(varname2, false);
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] -= tryParse<double>(varname2, false);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+
+short mulArrs(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isiarr(varname)){
+		try{
+			interpretator_math::mulArray<int>(vars::iarrs[varname], tryParse<int>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isfarr(varname)){
+		try{
+			interpretator_math::mulArray<float>(vars::farrs[varname], tryParse<float>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isdarr(varname)){
+		try{
+			interpretator_math::mulArray<double>(vars::darrs[varname], tryParse<double>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}
+	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+}
+
+short mulVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] *= tryParse<int>(varname2, false);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] *= tryParse<float>(varname2, false);
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] *= tryParse<double>(varname2, false);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+
+short divArrs(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isiarr(varname)){
+		try{
+			interpretator_math::divArray<int>(vars::iarrs[varname], tryParse<int>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isfarr(varname)){
+		try{
+			interpretator_math::divArray<float>(vars::farrs[varname], tryParse<float>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}else if(vars::isdarr(varname)){
+		try{
+			interpretator_math::divArray<double>(vars::darrs[varname], tryParse<double>(varname2, false));
+		}catch(const std::invalid_argument& e){
+			return ParseStatus::PARSE_ERROR;
+		}
+		return ParseStatus::OK;
+	}
+	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+}
+
+short divVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] /= tryParse<int>(varname2, false);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] /= tryParse<float>(varname2, false);
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] /= tryParse<double>(varname2, false);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short manageHightLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
+	std::string varname1;
+	short status;
+	iss >> varname1;
+	if(vars::isnotdeclared(varname1)){
+		return ParseStatus::UD_OPERATION;
+	}
+	switch(operation){
+		case InterpretatorKeyword::print:
+			if(vars::isarray(varname1)){
+				printArrs(varname1);
+			}else{
+				printVar(varname1);
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::sum:
+			if(vars::isarray(varname1)){
+				status = sumArrs(iss, varname1);
+			}else{
+				status = sumVar(iss, varname1);
+			}
+			return status;
+		case InterpretatorKeyword::sub:
+			if(vars::isarray(varname1)){
+				status = subArrs(iss, varname1);
+			}else{
+				status = subVar(iss, varname1);
+			}
+			return status;
+	}
+	return ParseStatus::UD_OPERATION;
+}
+
 short interpretline(std::string progline){
 	std::istringstream iss{progline};
 	std::string operation_str, label, block;
