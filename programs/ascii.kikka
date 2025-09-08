@@ -1,8 +1,9 @@
 hitotsu 256
+goto q1
 label q1
 bunkiten -1 256
 goto 7
 mojiwokaku
 ->
-to q1
+do q1
 owari 

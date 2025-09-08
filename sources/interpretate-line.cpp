@@ -1,13 +1,3 @@
-#include <iostream>
-#include <string>
-#include <sstream>
-#include <stdexcept>
-#include <functional>
-#include <execution>
-#include <utility>
-#include "interpretator-flags.hpp"
-#include "interpretator-args.hpp"
-#include "interpretator-math.hpp"
 #include "interpretate-line.hpp"
 
 const std::vector<std::string> same_keyword{
@@ -17,14 +7,21 @@ const std::vector<std::string> same_keyword{
 	"float",
 	"double",
 	"char",
-	"bool"
+	"bool",
+	"goto"
 };
 
 std::string may_keyword_change(const std::string& option){
 	if(option == "->") return std::string("shr");
 	if(option == "<-") return std::string("shl");
+	if(option == "<") return std::string("lt");
+	if(option == ">") return std::string("gt");
+	if(option == "<=") return std::string("le");
+	if(option == ">=") return std::string("ge");
+	if(option == "==") return std::string("eq");
+	if(option == "!=") return std::string("ne");
 	if(option == "" || option == ";") return std::string("empty");
-	if(std::execution::sequenced_policy(), std::find(same_keyword.cbegin(), same_keyword.cend(), option) != same_keyword.end()){
+	if(std::find(same_keyword.cbegin(), same_keyword.cend(), option) != same_keyword.end()){
 		return option + "_";
 	}
 	return option;
@@ -102,7 +99,7 @@ short manageLowLevel(std::istringstream& iss, const InterpretatorKeyword operati
 		set_to_tape(a1, 1);
 		return ParseStatus::OK;
 	case InterpretatorKeyword::addr:
-		flags::addr = interpretator_math::abs(a1, 0, 257);
+		flags::addr = interpretator_math::abs_mod(a1, 0, 257);
 		return ParseStatus::OK;
 	case InterpretatorKeyword::addrwokaku:
 		std::cerr << flags::addr << std::endl;
@@ -111,10 +108,10 @@ short manageLowLevel(std::istringstream& iss, const InterpretatorKeyword operati
 		std::cout << char(flags::addr);
 		return ParseStatus::OK;
 	case InterpretatorKeyword::shr: //"->"
-		flags::addr = interpretator_math::abs(++flags::addr, 0, 257);
+		flags::addr = interpretator_math::abs_mod(++flags::addr, 0, 257);
 		return ParseStatus::OK;
 	case InterpretatorKeyword::shl: //"<-"
-		flags::addr = interpretator_math::abs(--flags::addr, 0, 257);
+		flags::addr = interpretator_math::abs_mod(--flags::addr, 0, 257);
 		return ParseStatus::OK;
 	case InterpretatorKeyword::prob:
 		flags::prob = std::abs((a1 == -1? flags::addr:a1)) % 101;
@@ -124,11 +121,11 @@ short manageLowLevel(std::istringstream& iss, const InterpretatorKeyword operati
 		return ParseStatus::OK;
 	case InterpretatorKeyword::inaddr:
 		std::cin >> flags::inaddr;
-		flags::inaddr = interpretator_math::abs(flags::inaddr, 0, 257);
+		flags::inaddr = interpretator_math::abs_mod(flags::inaddr, 0, 257);
 		flags::addr = flags::inaddr;
 		return ParseStatus::OK;
 	case InterpretatorKeyword::loop:
-		flags::addr = interpretator_math::abs(flags::cycles, 0, 257);
+		flags::addr = interpretator_math::abs_mod(flags::cycles, 0, 257);
 		return ParseStatus::OK;
 	}
 	return ParseStatus::UD_OPERATION;
@@ -660,8 +657,343 @@ short divVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
+short powVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] = static_cast<int>(std::pow(vars::vars[varname], tryParse<int>(varname2, false)));
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = static_cast<float>(std::pow(vars::fvars[varname], tryParse<float>(varname2, false)));
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] = static_cast<double>(std::pow(vars::dvars[varname], tryParse<double>(varname2, false)));
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short sqrtVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isdouble(varname)){
+		if(vars::dvars[varname] < 0){
+			return ParseStatus::MATH_ERROR;
+		}
+		vars::dvars[varname] = std::sqrt(vars::dvars[varname]);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short cnkVars(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isarray(varname) || vars::isarray(varname2)){
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	if(vars::isint(varname)){
+		vars::vars[varname] = interpretator_math::cnk(vars::vars[varname], tryParse<int>(varname2));
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = interpretator_math::cnk(vars::fvars[varname], tryParse<int>(varname2));
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] = interpretator_math::cnk(vars::dvars[varname], tryParse<int>(varname2));
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short sinVars(const std::string& varname){
+	if(vars::isarray(varname)){
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	if(vars::isint(varname)){
+		vars::vars[varname] = interpretator_math::sinn(vars::vars[varname]);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = interpretator_math::sinn(vars::fvars[varname]);
+	}else if(vars::isdouble){
+		vars::dvars[varname] = interpretator_math::sinn(vars::dvars[varname]);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short cosVars(const std::string& varname){
+	if(vars::isarray(varname)){
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	if(vars::isint(varname)){
+		vars::vars[varname] = interpretator_math::cosn(vars::vars[varname]);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = interpretator_math::cosn(vars::fvars[varname]);
+	}else if(vars::isdouble){
+		vars::dvars[varname] = interpretator_math::cosn(vars::dvars[varname]);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short expVars(const std::string& varname){
+	if(vars::isarray(varname)){
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	if(vars::isint(varname)){
+		vars::vars[varname] = interpretator_math::expn(vars::vars[varname]);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = interpretator_math::expn(vars::fvars[varname]);
+	}else if(vars::isdouble){
+		vars::dvars[varname] = interpretator_math::expn(vars::dvars[varname]);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short lnVars(const std::string& varname){
+	if(vars::isarray(varname)){
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	if(vars::isint(varname)){
+		vars::vars[varname] = interpretator_math::lnn(vars::vars[varname]);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = interpretator_math::lnn(vars::fvars[varname]);
+	}else if(vars::isdouble){
+		vars::dvars[varname] = interpretator_math::lnn(vars::dvars[varname]);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short assignVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] = tryParse<int>(varname2);
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = tryParse<float>(varname2);
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] = tryParse<double>(varname2);
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short modVar(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		vars::vars[varname] = interpretator_math::mod(vars::vars[varname], tryParse<int>(varname2));
+	}else if(vars::isfloat(varname)){
+		vars::fvars[varname] = interpretator_math::mod(vars::fvars[varname], tryParse<int>(varname2));
+	}else if(vars::isdouble(varname)){
+		vars::dvars[varname] = interpretator_math::mod(vars::dvars[varname], tryParse<int>(varname2));
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short modArrs(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	int varvalue2 = tryParse<int>(varname2);
+	if(vars::isiarr(varname)){
+		interpretator_math::modArray(vars::iarrs[varname], varvalue2);
+	}else if(vars::isfarr(varname)){
+		interpretator_math::modArray(vars::farrs[varname], varvalue2);
+	}else if(vars::isdarr(varname)){
+		interpretator_math::modArray(vars::darrs[varname], varvalue2);
+	}
+	return ParseStatus::OK;
+}
+
+short setArrayVal(std::istringstream& iss, const std::string& varname){
+	std::string index_str, value_str;
+	iss >> index_str >> value_str;
+	int index = tryParse<int>(index_str);
+	if(vars::isiarr(varname)){
+		vars::iarrs[varname].at(index) = tryParse<int>(value_str, false);
+	}else if(vars::isfarr(varname)){
+		vars::farrs[varname].at(index) = tryParse<float>(value_str, false);
+	}else if(vars::isdarr(varname)){
+		vars::darrs[varname].at(index) = tryParse<double>(value_str, false);
+	}else if(vars::iscarr(varname)){
+		vars::carrs[varname].at(index) = tryParse<char>(value_str, false);
+	}else if(vars::issarr(varname)){
+		vars::sarrs[varname].at(index) = tryParse<std::string>(value_str, false);
+	}else{
+		return ParseStatus::PARSE_ERROR;
+	}
+	return ParseStatus::OK;
+}
+
+short getArrayVal(std::istringstream& iss, const std::string& varname){
+	std::string index_str, varname_str;
+	iss >> index_str >> varname_str;
+	int index = tryParse<int>(index_str);
+	if(vars::isiarr(varname)){
+		if(vars::isint(varname_str)){
+			vars::vars[varname_str] = vars::iarrs[varname][index];
+			return ParseStatus::OK;
+		}
+		if(vars::isfloat(varname_str)){
+			vars::fvars[varname_str] = vars::iarrs[varname][index];
+			return ParseStatus::OK;
+		}
+		if(vars::isdouble(varname_str)){
+			vars::dvars[varname_str] = vars::iarrs[varname][index];
+			return ParseStatus::OK;
+		}
+	}else if(vars::isfarr(varname)){
+		if(vars::isint(varname_str)){
+			vars::vars[varname_str] = vars::farrs[varname][index];
+			return ParseStatus::OK;
+		}
+		if(vars::isfloat(varname_str)){
+			vars::fvars[varname_str] = vars::farrs[varname][index];
+			return ParseStatus::OK;
+		}
+		if(vars::isdouble(varname_str)){
+			vars::dvars[varname_str] = vars::farrs[varname][index];
+			return ParseStatus::OK;
+		}
+	}else if(vars::isdarr(varname)){
+		if(vars::isint(varname_str)){
+			vars::vars[varname_str] = vars::darrs[varname][index];
+			return ParseStatus::OK;
+		}
+		if(vars::isfloat(varname_str)){
+			vars::fvars[varname_str] = vars::darrs[varname][index];
+			return ParseStatus::OK;
+		}
+		if(vars::isdouble(varname_str)){
+			vars::dvars[varname_str] = vars::darrs[varname][index];
+			return ParseStatus::OK;
+		}
+	}else if(vars::iscarr(varname) && vars::ischar(varname_str)){
+		vars::cvars[varname_str] = vars::carrs[varname][index];
+		return ParseStatus::OK;
+	}else if(vars::isbarr(varname) && vars::isbool(varname_str)){
+		vars::bools[varname_str] = vars::barrs[varname][index];
+		return ParseStatus::OK;
+	}else if(vars::isstring(varname_str) && vars::issarr(varname)){
+		vars::strings[varname_str] = vars::sarrs[varname][index];
+		return ParseStatus::OK;
+	}
+	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+}
+
+short popArray(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isnotdeclared(varname2)){
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	if (vars::isiarr(varname)) { // int array
+		if (vars::isint(varname2)) {
+			vars::vars[varname2] = vars::iarrs[varname].back();
+		} else if (vars::isfloat(varname2)) {
+			vars::fvars[varname2] = float(vars::iarrs[varname].back());
+		} else if (vars::isdouble(varname2)) {
+			vars::dvars[varname2] = double(vars::iarrs[varname].back());
+		} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		vars::iarrs[varname].pop_back();
+		return ParseStatus::OK;
+	} else if (vars::isfarr(varname)) { // float array
+		if (vars::isint(varname2)) {
+			vars::vars[varname2] = int(vars::farrs[varname].back());
+		} else if (vars::isfloat(varname2)) {
+			vars::fvars[varname2] = vars::farrs[varname].back();
+		} else if (vars::isdouble(varname2)) {
+			vars::dvars[varname2] = double(vars::farrs[varname].back());
+		} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		vars::farrs[varname].pop_back();
+		return ParseStatus::OK;
+	} else if (vars::isdarr(varname)) { // double array
+		if (vars::isint(varname2)) {
+			vars::vars[varname2] = int(vars::darrs[varname].back());
+		} else if (vars::isfloat(varname2)) {
+			vars::fvars[varname2] = float(vars::darrs[varname].back());
+		} else if (vars::isdouble(varname2)) {
+			vars::dvars[varname2] = vars::darrs[varname].back();
+		} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		vars::darrs[varname].pop_back();
+		return ParseStatus::OK;
+	} else if (vars::iscarr(varname)) { // char array
+		if (vars::ischar(varname2)) {
+			vars::cvars[varname2] = vars::carrs[varname].back();
+		} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		vars::carrs[varname].pop_back();
+		return ParseStatus::OK;
+	} else if (vars::isbarr(varname2)) { // bool array
+		if (vars::isbool(varname2)) {
+			vars::bools[varname2] = vars::barrs[varname].back();
+		} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		vars::barrs[varname].pop_back();
+		return ParseStatus::OK;
+	} else if (vars::issarr(varname)) { // string array
+		if (vars::isstring(varname2)) {
+			vars::strings[varname2] = vars::sarrs[varname].back();
+		} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		vars::sarrs[varname].pop_back();
+		return ParseStatus::OK;
+	} else return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+
+}
+
+short appendArray(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isiarr(varname)){
+		vars::iarrs[varname].push_back(tryParse<int>(varname2, false));
+	}else if(vars::isfarr(varname)){
+		vars::farrs[varname].push_back(tryParse<float>(varname2, false));
+	}else if(vars::isdarr(varname)){
+		vars::darrs[varname].push_back(tryParse<double>(varname2, false));
+	}else if(vars::iscarr(varname)){
+		vars::carrs[varname].push_back(static_cast<char>(tryParse<int>(varname2, false)));
+	}else if(vars::issarr(varname)){
+		vars::sarrs[varname].push_back(tryParse<std::string>(varname2, false));
+	}else if(vars::isbarr(varname)){
+		vars::barrs[varname].push_back(static_cast<bool>(tryParse<int>(varname2, false)));
+	}else{
+		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+	}
+	return ParseStatus::OK;
+}
+
+short lenghtArray(std::istringstream& iss, const std::string& varname){
+	std::string varname2;
+	iss >> varname2;
+	if(vars::isint(varname)){
+		int& res = vars::vars[varname];
+		if(vars::isiarr(varname2)){
+			res = vars::iarrs[varname2].size();
+		}else if(vars::isfarr(varname2)){
+			res = vars::farrs[varname2].size();
+		}else if(vars::isdarr(varname2)){
+			res = vars::darrs[varname2].size();
+		}else if(vars::isbarr(varname2)){
+			res = vars::barrs[varname2].size();
+		}else if(vars::iscarr(varname2)){
+			res = vars::carrs[varname2].size();
+		}else if(vars::issarr(varname2)){
+			res = vars::sarrs[varname2].size();
+		}else{
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		}
+		return ParseStatus::OK;
+	}
+	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+}
+
 short manageHightLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
-	std::string varname1;
+	std::string varname1, varname2;
 	short status;
 	iss >> varname1;
 	if(vars::isnotdeclared(varname1)){
@@ -689,11 +1021,329 @@ short manageHightLevelFunc(std::istringstream& iss, InterpretatorKeyword operati
 				status = subVar(iss, varname1);
 			}
 			return status;
+		case InterpretatorKeyword::mult:
+			if(vars::isarray(varname1)){
+				status = mulArrs(iss, varname1);
+			}else{
+				status = subVar(iss, varname1);
+			}
+			return status;
+		case InterpretatorKeyword::div:
+			if(vars::isarray(varname1)){
+				status = divArrs(iss, varname1);
+			}else{
+				status = divVar(iss, varname1);
+			}
+			return status;
+		case InterpretatorKeyword::pow:
+			if(vars::isarray(varname1)){
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return powVar(iss, varname1);
+		case InterpretatorKeyword::sqrt:
+			if(vars::isarray(varname1)){
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return sqrtVar(iss, varname1);
+		case InterpretatorKeyword::lt:
+			iss >> varname2;
+			if(!(tryParse<double>(varname1, false) < tryParse<double>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::gt:
+			iss >> varname2;
+			if(!(tryParse<double>(varname1, false) > tryParse<double>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::le:
+			iss >> varname2;
+			if(!(tryParse<double>(varname1, false) <= tryParse<double>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::ge:
+			iss >> varname2;
+			if(!(tryParse<double>(varname1, false) >= tryParse<double>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::eq:
+			iss >> varname2;
+			if(!(tryParse<double>(varname1, false) == tryParse<double>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::ne:
+			iss >> varname2;
+			if(!(tryParse<std::string>(varname1, false) != tryParse<std::string>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			if(!(tryParse<double>(varname1, false) != tryParse<double>(varname2, false))){
+				vars::vars["lineNumber"]++;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::factor:
+			if(vars::isint(varname1)){
+				vars::vars[varname1] = interpretator_math::factor(tryParse<int>(varname1));
+			}else if(vars::isfloat(varname1)){
+				vars::fvars[varname1] = interpretator_math::factor(tryParse<int>(varname1));
+			}else if(vars::isdouble(varname1)){
+				vars::dvars[varname1] = interpretator_math::factor(tryParse<int>(varname1));
+			}else{
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::cnk:
+			return cnkVars(iss, varname1);
+		case InterpretatorKeyword::sin:
+			return sinVars(varname1);
+		case InterpretatorKeyword::cos:
+			return cosVars(varname1);
+		case InterpretatorKeyword::exp:
+			return expVars(varname1);
+		case InterpretatorKeyword::ln:
+			return lnVars(varname1);
+		case InterpretatorKeyword::equal:
+			return assignVar(iss, varname1);
+		case InterpretatorKeyword::mod:
+			if(vars::isarray(varname1)){
+				status = modArrs(iss, varname1);
+			}else{
+				status = modVar(iss, varname1);
+			}
+		case InterpretatorKeyword::set:
+			if(!vars::isarray(varname1)){
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return setArrayVal(iss, varname1);
+		case InterpretatorKeyword::get:
+			if(!vars::isarray(varname1)){
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return getArrayVal(iss, varname1);
+		case InterpretatorKeyword::pop:
+			return popArray(iss, varname1);
+		case InterpretatorKeyword::append:
+			return appendArray(iss, varname1);
+		case InterpretatorKeyword::lenght:
+			return lenghtArray(iss, varname1);
+		case InterpretatorKeyword::mean:
+			iss >> varname2;
+			if(vars::isdouble(varname1) && vars::isdarr(varname2)){
+				vars::dvars[varname1] = interpretator_math::calculateAverage(varname2);
+				return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		case InterpretatorKeyword::cumsum:
+			iss >> varname2;
+			if(vars::isdouble(varname1) && vars::isdarr(varname2)){
+				vars::dvars[varname1] = interpretator_math::cumsum(varname2);
+				return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		case InterpretatorKeyword::dispersion:
+			iss >> varname2;
+			if(vars::isdouble(varname1) && vars::isdarr(varname2)){
+				vars::dvars[varname1] = interpretator_math::calcdisp(varname2);
+				return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		case InterpretatorKeyword::ceil:
+			iss >> varname2;
+			if(vars::isint(varname1)){
+				if(vars::isfloat(varname2)){
+					vars::vars[varname1] = ceil(vars::fvars[varname2]);
+				}else if(vars::isdouble(varname2)){
+					vars::vars[varname1] = ceil(vars::dvars[varname2]);
+				}else{
+					return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+				}
+			}else{
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::trunc:
+			iss >> varname2;
+			if(vars::isint(varname1)){
+				if(vars::isfloat(varname2)){
+					vars::vars[varname1] = trunc(vars::fvars[varname2]);
+				}else if(vars::isdouble(varname2)){
+					vars::vars[varname1] = trunc(vars::dvars[varname2]);
+				}else{
+					return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+				}
+			}else{
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::floor:
+			iss >> varname2;
+			if(vars::isint(varname1)){
+				if(vars::isfloat(varname2)){
+					vars::vars[varname1] = floor(vars::fvars[varname2]);
+				}else if(vars::isdouble(varname2)){
+					vars::vars[varname1] = floor(vars::dvars[varname2]);
+				}else{
+					return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+				}
+			}else{
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return ParseStatus::OK;
+		case InterpretatorKeyword::round:
+			iss >> varname2;
+			if(vars::isint(varname1)){
+				if(vars::isfloat(varname2)){
+					vars::vars[varname1] = (vars::fvars[varname2] - floor(vars::fvars[varname2]) < 0.5) ? floor(vars::fvars[varname2]) : ceil(vars::fvars[varname2]);
+				}else if(vars::isdouble(varname2)){
+					vars::vars[varname1] = (vars::dvars[varname2] - floor(vars::dvars[varname2]) < 0.5) ? floor(vars::dvars[varname2]) : ceil(vars::dvars[varname2]);
+				}else{
+					return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+				}
+			}else{
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			}
+			return ParseStatus::OK;
+	}
+
+	return ParseStatus::UD_OPERATION;
+}
+
+short manageRandomLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
+	std::string varname, varname2, varname3;
+	double varvalue2, varvalue3;
+	short status;
+	iss >> varname >> varname2;
+	if(vars::isnotdeclared(varname)){
+		return ParseStatus::UD_OPERATION;
+	}
+	switch(operation){
+		case InterpretatorKeyword::uniform:
+			iss >> varname3;
+			varvalue2 = tryParse<double>(varname2, false);
+			varvalue3 = tryParse<double>(varname3, false);
+			if(varvalue2 >= varvalue3){
+				return ParseStatus::MATH_ERROR;
+			}
+			if(vars::isdouble(varname)){
+				vars::dvars[varname] = interpretator_math::RandomUniform(varvalue2, varvalue3);
+			return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+
+		case InterpretatorKeyword::rand:
+			return ParseStatus::OK;
+
+		case InterpretatorKeyword::normal:
+			iss >> varname3;
+			varvalue3 = tryParse<double>(varname3, false);
+			if(varvalue3 <= 0){
+				return ParseStatus::MATH_ERROR;
+			}
+			if(vars::isdouble(varname)){
+				vars::dvars[varname] = interpretator_math::RandomNormal(tryParse<double>(varname2, false), varvalue3);
+				return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		
+		case InterpretatorKeyword::bernoulli:
+			iss >> varname3;
+			varvalue2 = tryParse<double>(varname2, false);
+			if(varvalue2 < 0 || 1 < varvalue2){
+				return ParseStatus::MATH_ERROR;
+			}
+			if(vars::isdouble(varname)){
+				vars::dvars[varname] = interpretator_math::RandomBernoulli(varvalue2);
+				return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+
+		case InterpretatorKeyword::poisson:
+			varvalue2 = tryParse<double>(varname2, false);
+			if(varvalue2 <= 0){
+				return ParseStatus::MATH_ERROR;
+			}
+			if(vars::isint(varname)){
+				vars::vars[varname] = interpretator_math::RandomPoisson(varvalue2);
+				return ParseStatus::OK;
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+		case InterpretatorKeyword::histogram:
+			iss >> varname3;
+			if(vars::isiarr(varname)){
+				if(vars::isdarr(varname2)){
+					vars::iarrs[varname] = interpretator_math::createHistogram(varname2, tryParse<int>(varname3));
+					return ParseStatus::OK;
+				}
+			}
+			return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 	}
 	return ParseStatus::UD_OPERATION;
 }
 
-short interpretline(std::string progline){
+void manageTimedelta(std::istringstream& iss, InterpretatorKeyword operation){
+	switch(operation){
+		case InterpretatorKeyword::jikannoowari:
+			if(flags::jikanwomiru){
+				flags::jikanwomiru = false;
+				std::cerr << "Microseconds: " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - flags::start).count() << std::endl;
+			}
+			break;
+		case InterpretatorKeyword::jikannohajimaru:
+			flags::jikanwomiru = true;
+			flags::start = std::chrono::high_resolution_clock::now();
+			break;
+	}
+}
+
+short manageReadFileFunc(std::istringstream& iss){
+	std::string varname1, varname2;
+	iss >> varname1 >> varname2;
+	std::string varvalue1;
+	std::string varvalue2 = tryParse<std::string>(varname2);
+	std::ifstream file(varvalue2);
+	if(file.fail() && !vars::issarr(varname1)){
+		file.close();
+		return ParseStatus::CANT_OPEN_FILE;
+	}
+	while(getline(file, varvalue1)){
+		vars::sarrs[varname1].push_back(varvalue1);
+	}
+	file.close();
+	return ParseStatus::OK;
+}
+
+short binaryArrayToInt(std::istringstream& iss){
+	std::string varname1, varname2, varname3;
+	iss >> varname1 >> varname2 >> varname3;
+	int start = tryParse<int>(varname2);
+	start = interpretator_math::abs_mod(start, 0, flags::tape.size());
+	int end = tryParse<int>(varname3);
+	end = interpretator_math::abs_mod(end, 0, flags::tape.size());
+	
+	vars::vars[varname1] = flags::binaryArrayToInt(start, end);
+	return ParseStatus::OK;
+}
+
+short manageWriteFileFunc(std::istringstream& iss){
+	std::string varname1, varname2;
+	iss >> varname1 >> varname2;
+	std::string varvalue1 = tryParse<std::string>(varname1);
+	std::ofstream file(varvalue1);
+	if(file.fail() && !vars::issarr(varname2)){
+		file.close();
+		return ParseStatus::CANT_OPEN_FILE;
+	}
+	for(auto line = vars::sarrs[varname2].cbegin(); line != vars::sarrs[varname2].cend(); line++){
+		file << *line << '\n';
+	}
+	file.close();
+	return ParseStatus::OK;
+}
+
+short interpretline(std::string& progline){
 	std::istringstream iss{progline};
 	std::string operation_str, label, block;
 	short respons;
@@ -705,7 +1355,8 @@ short interpretline(std::string progline){
 	if(!flags::watchblock){
 		switch(operation){
 			case InterpretatorKeyword::hajimaru:
-			case InterpretatorKeyword::label: break;
+			case InterpretatorKeyword::label:
+				if(vars::isnotdeclared)
 			
 			case InterpretatorKeyword::do_:
 			case InterpretatorKeyword::break_:
@@ -761,14 +1412,179 @@ short interpretline(std::string progline){
 			case InterpretatorKeyword::mult:
 			case InterpretatorKeyword::div:
 			case InterpretatorKeyword::pow:
-
+			case InterpretatorKeyword::sqrt:
+			case InterpretatorKeyword::lt:
+			case InterpretatorKeyword::gt:
+			case InterpretatorKeyword::le:
+			case InterpretatorKeyword::ge:
+			case InterpretatorKeyword::eq:
+			case InterpretatorKeyword::ne:
+			case InterpretatorKeyword::factor:
+			case InterpretatorKeyword::cnk:
+			case InterpretatorKeyword::sin:
+			case InterpretatorKeyword::cos:
+			case InterpretatorKeyword::exp:
+			case InterpretatorKeyword::ln:
+			case InterpretatorKeyword::equal:
+			case InterpretatorKeyword::mod:
+			case InterpretatorKeyword::set:
+			case InterpretatorKeyword::pop:
+			case InterpretatorKeyword::append:
+			case InterpretatorKeyword::lenght:
+			case InterpretatorKeyword::mean:
 				respons = manageHightLevelFunc(iss, operation);
 				if(respons != ParseStatus::OK) return respons;
 				break;
+			case InterpretatorKeyword::uniform:
+			case InterpretatorKeyword::rand:
+			case InterpretatorKeyword::bernoulli:
+			case InterpretatorKeyword::poisson:
+			case InterpretatorKeyword::histogram:
+				respons = manageRandomLevelFunc(iss, operation);
+				if(respons != ParseStatus::OK) return respons;
+				break;
+			case InterpretatorKeyword::run:
+				break;
+
+			case InterpretatorKeyword::read:
+				respons = manageReadFileFunc(iss);
+				if(respons != ParseStatus::OK) return respons;
+				break;
+			case InterpretatorKeyword::write:
+				respons = manageWriteFileFunc(iss);
+				if(respons != ParseStatus::OK) return respons;
+				break;
+
+			case InterpretatorKeyword::jikannohajimaru:
+			case InterpretatorKeyword::jikannoowari:
+				manageTimedelta(iss, operation);
+				break;
+			case InterpretatorKeyword::goto_:
+				iss >> label;
+				if(vars::islabel(label)){
+					vars::vars["lineNumber"] = vars::labels[label];
+					return ParseStatus::OK;
+				}else{
+					int gtl = tryParse<int>(label);
+					if(gtl == -1){
+						vars::vars["lineNumber"] = flags::addr - 1;
+						return ParseStatus::OK;
+					}else{
+						vars::vars["lineNumber"] = gtl - 1;
+						return ParseStatus::OK;
+					}
+				}
+				return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
+			case InterpretatorKeyword::tapeint:
+				return binaryArrayToInt(iss);
 			default:
 				return ParseStatus::UD_OPERATION;
 
 		}
 	}
 	return ParseStatus::END;
+}
+
+void moderniseProgramLine(std::string& program_line, int line_number, bool& skip_line){
+	if(program_line.empty()){
+		return;
+	}
+	std::string::iterator start_commit = program_line.begin() + program_line.find("\\*");
+	if(start_commit != program_line.end()){
+		skip_line = true;
+	}
+	std::string::iterator end_commit = program_line.begin() + program_line.find("*\\");
+	if(end_commit != program_line.end()){
+		start_commit = start_commit == program_line.end() ? program_line.begin() : start_commit;
+		program_line = std::string(
+			program_line.begin(),
+			start_commit
+		)
+		+ std::string(
+			end_commit,
+			program_line.end()
+		);
+		skip_line = false;
+	}
+	if(skip_line){
+		return;
+	}
+	std::istringstream sprog_line(program_line);
+	std::string operation;
+	sprog_line >> operation;
+	if(operation == "label"){
+		std::string name;
+		sprog_line >> name;
+		vars::labels[name] = line_number;
+		program_line = std::string();
+		return;
+	}
+	if(operation == "block"){
+		std::string name;
+		sprog_line >> name;
+		vars::blocks[name] = line_number;
+		program_line = std::string();
+		return;
+	}
+	if(operation == "prec"){
+		int val;
+		sprog_line >> val;
+		std::cout << std::fixed << std::setprecision(val);
+		program_line = std::string();
+		return;
+	}
+}
+
+void parseError(ParseStatus status){
+	if(status == ParseStatus::OK || ParseStatus::END){
+		return;
+	}
+	switch(status){
+		case ParseStatus::UD_OPERATION:
+			std::cerr << "Unknown operation in line!" << std::endl;
+			break;
+		case ParseStatus::UNHANDLED_OPERATION_WITH_TYPES:
+			std::cerr << "Unhandled operation with types." << std::endl;
+			break;
+		case ParseStatus::MATH_ERROR:
+			std::cerr << "Division by zero in line." << std::endl;
+			break;
+		case ParseStatus::PARSE_ERROR:
+			std::cerr << "Cant parse command or value on line." << std::endl;
+			break;
+		case ParseStatus::ALREADY_EXISTS:
+			std::cerr << "The variable already exists on line." << std::endl;
+			break;
+		case ParseStatus::CANT_OPEN_FILE:
+			std::cerr << "Cant open file." << std::endl;
+			std::cerr << "File is not exists or dont have permissions." << std::endl;
+			break;
+	}
+	std::cout << std::endl;
+	std::cout << "The line on which the error occurred:\n" << std::endl;
+	std::cout << "Line " << vars::vars["lineNumber"] << ':' << vars::sarrs["program"][vars::vars["lineNumber"]] << std::endl;
+}
+
+bool hasContinue(){
+	std::string choise;
+	do{
+		std::cout << "Ignore the error (the line will be skipped, even bigger errors are possible!)? (y/n):";
+		std::cin >> choise;
+		std::transform(choise.begin(), choise.end(), choise.begin(), (int(*)(int))std::tolower);
+		if(choise[0] == 'y'){
+			std::cout << "The program will continue!\n" << std::endl;
+			try{
+				vars::sarrs["program"].at(++vars::vars["lineNumber"]) = std::string();
+			}catch(std::out_of_range const &e){
+				vars::vars["lineNumber"] = 0;
+				vars::vars["cycles"] = ++flags::cycles;
+			}
+			return true;
+		}
+		if(choise[0] == 'n'){
+			std::cout << "The program stops!" << std::endl;
+			return false;
+		}
+		std::cout << "Invalid input. Please enter 'y' or 'n'." << std::endl;
+	}while(true);
 }

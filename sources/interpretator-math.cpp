@@ -1,6 +1,4 @@
-#include <numeric>
-#include <cmath>
-#include <cstdlib>
+
 #include "interpretator-math.hpp"
 
 double interpretator_math::powerab(double a, int b){return std::pow(a, b);}
@@ -12,7 +10,7 @@ size_t interpretator_math::factor(unsigned int a){
 	return res;
 }
 
-int interpretator_math::abs(int a1, int min, int max){
+int interpretator_math::abs_mod(int a1, int min, int max){
 	while(a1 < min){
 		a1 = max - std::abs(a1);
 	}
@@ -81,7 +79,7 @@ double interpretator_math::calculateAverage(const std::string& vectorname) {
 
 // Кумулятивная сумма
 double interpretator_math::cumsum(const std::string& vectorname) {
-    if (darrs[vectorname].empty()) {
+    if (vars::darrs[vectorname].empty()) {
         throw std::invalid_argument("Vector is empty. Cannot calculate average.");
     }
     return std::accumulate(vars::darrs[vectorname].begin(), vars::darrs[vectorname].end(), 0);
@@ -89,7 +87,7 @@ double interpretator_math::cumsum(const std::string& vectorname) {
 
 // Дисперсия
 double interpretator_math::calcdisp(const std::string& vectorname) {
-    if (darrs[vectorname].empty()) {
+    if (vars::darrs[vectorname].empty()) {
         throw std::invalid_argument("Vector is empty. Cannot calculate average.");
     }
 	double mean = interpretator_math::calculateAverage(vectorname);
@@ -182,7 +180,7 @@ void interpretator_math::henkamono(int input_tape, int f1, int f2, int f3, int c
 		}
 		
 		if ((conf1 == 0) || (conf2 == 0)) {
-			flags::tape[output_tape] = tape[input_tape];
+			flags::tape[output_tape] = flags::tape[input_tape];
 		} else if ((conf1 == 0) || (conf2 == 1)) {
 			// Запоминаем выходы функций
 			output1 = (functions[0] == negation_value) ? interpretator_math::_negation(input) : input;
@@ -191,8 +189,8 @@ void interpretator_math::henkamono(int input_tape, int f1, int f2, int f3, int c
 
 			// Записываем текущие выходные значения
 			flags::tape[f1] = output1;
-			falgs::tape[f2] = output2;
-			falgs::tape[f3] = output3;
+			flags::tape[f2] = output2;
+			flags::tape[f3] = output3;
 
 			// Изменяем процессы на основе выходных значений
 			if (output3 == negation_value) {
@@ -219,9 +217,9 @@ void interpretator_math::henkamono(int input_tape, int f1, int f2, int f3, int c
 			output3 = (functions[2] == negation_value) ? interpretator_math::_negation(output2) : output2;
 			
 			// Записываем текущие выходные значения
-			tape[f1] = output1;
-			tape[f2] = output2;
-			tape[f3] = output3;
+			flags::tape[f1] = output1;
+			flags::tape[f2] = output2;
+			flags::tape[f3] = output3;
 			
 		} else if ((conf1 == 1) || (conf2 == 1)) {
 			output1 = (functions[0] == negation_value) ? _negation(input) : tautology(input);
@@ -238,9 +236,9 @@ void interpretator_math::henkamono(int input_tape, int f1, int f2, int f3, int c
 			}
 			
 			// Записываем текущие выходные значения
-			tape[f1] = output1;
-			tape[f2] = output2;
-			tape[f3] = output3;
+			flags::tape[f1] = output1;
+			flags::tape[f2] = output2;
+			flags::tape[f3] = output3;
 			
 		}
 		

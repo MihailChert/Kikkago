@@ -17,7 +17,7 @@ namespace flags{
 	int cycles = 0; // Сколько прошло циклов программы
 	bool watchblock = false;
 	bool jikanwomiru = false;
-	std::chrono::time_point start;
+	std::chrono::time_point<std::chrono::high_resolution_clock> start;
 
 	// Функция для преобразования ленты в число
 	int binaryArrayToInt(std::size_t start, std::size_t end) {
@@ -38,11 +38,12 @@ namespace flags{
 
 	    return result;
 	}
+
 	void printtape(int a1, int a2){
 		for (int i = a1; i <= a2; i++) {
 
-			std::cerr << tape[i]; << " ";
+			std::cout << tape[i] << " ";
 		}
-	    std::cerr << std::endl;
-}
+	    std::cout << std::endl;
+	}
 }

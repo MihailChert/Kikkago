@@ -3,6 +3,8 @@
 
 #include <array>
 #include <chrono>
+#include <stdexcept>
+#include <iostream>
 
 namespace flags{
 
