@@ -1,16 +1,15 @@
 #include <algorithm>
 #include <fstream>
 #include <sstream>
-#include <interpretate-flags.hpp>
-#include <interpretate-args.hpp>
-#include <interpretate-line.hpp>
+#include <string_view>
+#include "interpretate-line.hpp"
 
-char* getCmdOption(char** begin, char** end, const std::string& option);
-bool cmdOptionExists(char** begin, char** end, const std::string& option);
+int getCmdOption(int argc, char* argv[], const std::string_view option);
+bool cmdOptionExists(int argc, char* argv[], const std::string_view option);
 
 std::ifstream findProgramArg(int argc, char* argv[]);
 void initConstParameters();
-std::vector<std::string> parseProgram(const std::ifstream file);
+std::vector<std::string> parseProgram(std::ifstream& file);
 void executeProgram(std::vector<std::string>& program);
 
 
@@ -19,36 +18,39 @@ int main(int argc, char* argv[]){
 		std::cout << "Usage: " << argv[0] << " <filename>" << std::endl;
 		std::cout << "Kikkago - Quine is so easy in this language!" << std::endl;
 	}
-	if(cmdOptionExists("-v" || cmdOptionExists("--version"))){
+	if(cmdOptionExists(argc, argv, "-v") || cmdOptionExists(argc, argv, "--version")){
 		std::cout << "Version 1.1" << std::endl;
 	}
 
-	init_const_parameters();
+	initConstParameters();
 	
 	std::ifstream file = findProgramArg(argc, argv);
 	vars::sarrs["program"] = parseProgram(file);
 	file.close();
-	executeProgram(vars::sarrs["program"]);
+	executeProgram(vars::sarrs.at("program"));
 	return 0;
 }
 
 
-char* getCmdOption(char** begin, char** end, const std::string& option){
-	char** itr = std::find(begin, end, option);
-	if(itr != end && ++itr != end){
-		return *itr;
+int getCmdOption(int argc, char* argv[], const std::string_view option){
+	std::string_view cmd_option;
+	for(int i = 0; i < argc; i++){
+		cmd_option = argv[i];
+		if(option == cmd_option){
+			return i;
+		}
 	}
 	return 0;
 }
 
-bool cmdOptionExists(char** begin, char** end, const std::string& option){
-	return std::find(begin, end, option) != end;
+bool cmdOptionExists(int argc, char* argv[], const std::string_view option){
+	return getCmdOption(argc, argv, option) != 0;
 }
 
 std::ifstream findProgramArg(int argc, char* argv[]){
 	std::ifstream file;
 	for(size_t i = 1; i < argc; i++){
-		file.open(file);
+		file.open(argv[i]);
 		if(!file.fail()){
 			break;
 		}
@@ -57,15 +59,15 @@ std::ifstream findProgramArg(int argc, char* argv[]){
 }
 
 void initConstParameters(){
-	vars::vars["cycles"] = 0;
-	flags::cycles = vars::vars["cycles"];
-	vars::vars["lineNumber"] = 0;
-	vars::dvars["pi"] = 3.14159265358979323846;
-	vars::dvars["euler"] = 2.71828182845904523536;
-	vars::sarrs["program"] = std::vector();
+	vars::vars.at("cycles") = 0;
+	flags::cycles = vars::vars.at("cycles");
+	vars::vars.at("lineNumber") = 0;
+	vars::dvars.at("pi") = 3.14159265358979323846;
+	vars::dvars.at("euler") = 2.71828182845904523536;
+	vars::sarrs.at("program") = std::vector<std::string>{};
 }
 
-std::vector<std::string> parseProgram(const std::ifstream& file){
+std::vector<std::string> parseProgram(std::ifstream& file){
 	std::vector<std::string> program;
 	std::string line, name;
 	bool skip_line, has_end=false;
@@ -73,10 +75,10 @@ std::vector<std::string> parseProgram(const std::ifstream& file){
 	while(std::getline(file, line)){
 		moderniseProgramLine(line, line_number++, skip_line);
 		if(line.find("hajumaru")){
-			vars::vars["lineNumber"] = line_number-1;
+			vars::vars.at("lineNumber") = line_number-1;
 		}
-		has_end |= (line.find("owari") != line.end());
-		program.append(line);
+		has_end |= (line.find("owari") != -1);
+		program.push_back(line);
 	}
 	if(!has_end){
 		throw std::logic_error("The \'owari\' operator was never written down! Your programm will never end.");
@@ -85,16 +87,18 @@ std::vector<std::string> parseProgram(const std::ifstream& file){
 }
 
 void executeProgram(std::vector<std::string>& program){
-	short status;
+	ParseStatus status;
 	do{
 		try{
-			status = interpretline(vars::sarrs["program"][vars::vars["lineNumber"]]);
-		}case(const std::invalid_argument& e){
+			status = interpretline(
+				vars::sarrs.at("program").at(vars::vars.at("lineNumber"))
+			);
+		}catch(const std::invalid_argument& e){
 			status = ParseStatus::PARSE_ERROR;
 		};
-		if(++vars::vars["lineNumber"] == vars::sarrs["program"].size()){
-			vars::vars["lineNumber"] = 0;
-			vars::vars["cycles"] = ++flags::cycles;
+		if(++vars::vars.at("lineNumber") == vars::sarrs.at("program").size()){
+			vars::vars.at("lineNumber") = 0;
+			vars::vars.at("cycles") = ++flags::cycles;
 
 		}
 		if(status != ParseStatus::OK && status != ParseStatus::END){
@@ -103,5 +107,5 @@ void executeProgram(std::vector<std::string>& program){
 				status = ParseStatus::OK;
 			}
 		}
-	}while(status == ParseProgram::OK);
+	}while(status == ParseStatus::OK);
 }

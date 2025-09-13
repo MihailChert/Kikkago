@@ -21,12 +21,12 @@ extern std::map<std::string, int> alephs; // Хранилище переменн
 extern std::map<std::string, bool> bools; // Хранилище переменных типа bool
 extern std::map<std::string, std::string> strings; // Хранилище переменных типа strings
 // Массивы целых, не целых и строк
-extern std::map<std::string, std::vector<int>> iarrs; // Хранилище массивов целых чисел
-extern std::map<std::string, std::vector<float>> farrs; // Хранилище массивов float чисел
-extern std::map<std::string, std::vector<double>> darrs; // Хранилище массивов double чисел
-extern std::map<std::string, std::vector<bool>> barrs; // Хранилище массивов bool
-extern std::map<std::string, std::vector<char>> carrs; // Хранилище массивов char
-extern std::map<std::string, std::vector<std::string>> sarrs; // Хранилище массивов string
+extern std::map<std::string, std::vector<int> > iarrs; // Хранилище массивов целых чисел
+extern std::map<std::string, std::vector<float> > farrs; // Хранилище массивов float чисел
+extern std::map<std::string, std::vector<double> > darrs; // Хранилище массивов double чисел
+extern std::map<std::string, std::vector<bool> > barrs; // Хранилище массивов bool
+extern std::map<std::string, std::vector<char> > carrs; // Хранилище массивов char
+extern std::map<std::string, std::vector<std::string> > sarrs; // Хранилище массивов string
 
 bool isint(const std::string& key);
 bool isfloat(const std::string& key);

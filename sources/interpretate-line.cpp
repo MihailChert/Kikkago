@@ -11,6 +11,8 @@ const std::vector<std::string> same_keyword{
 	"goto"
 };
 
+const std::string standart_options[] = {"hajimaru", "label", "do_", "to", "break_", "block", "ugoku", "henkamono", "bunkiten", "conf", "conf1", "conf2", "kaku", "cycle", "zero", "hitotsu", "f1", "f2", "f3", "addr", "addrwokaku", "mojiwokaku", "shl", "shr", "empty", "prob", "inaddr", "loop", "kyouki", "owari", "int_", "float_", "double_", "char_", "bool_", "string", "array", "print", "sum", "sub", "mult", "div", "pow", "sqrt", "lt", "gt", "le", "ge", "eq", "ne", "factor", "cnk", "sin", "cos", "exp", "ln", "equal", "run", "mod", "set", "get", "uniform", "rand", "normal", "bernoulli", "poisson", "pop", "append", "write", "read", "lenght", "jikannohajimaru", "jikannoowari", "mean", "cumsum", "dispersion", "ceil", "floor", "round", "trunc", "histogram", "goto_", "tapeint", "nsm"};
+
 std::string may_keyword_change(const std::string& option){
 	if(option == "->") return std::string("shr");
 	if(option == "<-") return std::string("shl");
@@ -25,6 +27,16 @@ std::string may_keyword_change(const std::string& option){
 		return option + "_";
 	}
 	return option;
+}
+
+InterpretatorKeyword parseKeyword(const std::string& command_str){
+	int key = static_cast<int>(InterpretatorKeyword::hajimaru);
+	for(int i = 0; i < std::size(standart_options); i++, key++){
+		if(may_keyword_change(command_str) == standart_options[i]){
+			return static_cast<InterpretatorKeyword>(key);
+		}
+	}
+	throw std::domain_error("Invalid keyword.");
 }
 
 void set_addr(int& a1, int& a2){
@@ -50,7 +62,7 @@ void set_to_tape(int a1, int value){
 	}
 }
 
-short manageLowLevel(std::istringstream& iss, const InterpretatorKeyword operation){
+ParseStatus manageLowLevel(std::istringstream& iss, const InterpretatorKeyword operation){
 	int a1, a2;
 	iss >> a1 >> a2;
 	switch(operation){
@@ -131,7 +143,7 @@ short manageLowLevel(std::istringstream& iss, const InterpretatorKeyword operati
 	return ParseStatus::UD_OPERATION;
 }
 
-short manageBlock(std::istringstream& iss, const InterpretatorKeyword& operation){
+ParseStatus manageBlock(std::istringstream& iss, const InterpretatorKeyword& operation){
 	std::string block;
 	iss >> block;
 	switch(operation){
@@ -161,7 +173,7 @@ bool strtob(const std::string& str){
 	return true;
 }
 
-short cast_bool(const std::string& varname, bool notdeclarated, bool& casted){
+ParseStatus cast_bool(const std::string& varname, bool notdeclarated, bool& casted){
 	if(notdeclarated){
 		casted = strtob(varname);
 		return ParseStatus::OK;
@@ -178,7 +190,7 @@ short cast_bool(const std::string& varname, bool notdeclarated, bool& casted){
 	return ParseStatus::OK;
 }
 
-short cast_char(const std::string& varname, bool notdeclarated, char& casted){
+ParseStatus cast_char(const std::string& varname, bool notdeclarated, char& casted){
 	if(notdeclarated){
 		casted = varname.c_str()[0];
 		return ParseStatus::OK;
@@ -190,7 +202,7 @@ short cast_char(const std::string& varname, bool notdeclarated, char& casted){
 	return ParseStatus::PARSE_ERROR;
 }
 
-short cast_string(const std::string& varname, bool notdeclarated, std::string& casted){
+ParseStatus cast_string(const std::string& varname, bool notdeclarated, std::string& casted){
 	if(notdeclarated){
 		casted = varname;
 		return ParseStatus::OK;
@@ -210,7 +222,7 @@ short cast_string(const std::string& varname, bool notdeclarated, std::string& c
 }
 
 template<typename T>
-short create_array(
+ParseStatus create_array(
 	std::map<std::string, std::vector<T> >& arrmap,
 	T(*parse)(const std::string&, size_t*, int),
 	const std::string& varname,
@@ -235,7 +247,7 @@ short create_array(
 	return ParseStatus::PARSE_ERROR;
 }
 template<typename T>
-short create_array(
+ParseStatus create_array(
 	std::map<std::string, std::vector<T> >& arrmap,
 	T(*parse)(const std::string&, size_t*),
 	const std::string& varname,
@@ -261,21 +273,21 @@ short create_array(
 }
 
 template<typename T>
-short create_array(
+ParseStatus create_array(
 	std::map<std::string, std::vector<T> >& arrmap,
 	const std::string& varname,
 	std::string& varname2,
-	short(*cast)(const std::string&, bool, T&)
+	ParseStatus(*cast)(const std::string&, bool, T&)
 ){
 	T casted;
-	short respons = cast(varname2, vars::isnotdeclared(varname2), casted);
+	ParseStatus respons = cast(varname2, vars::isnotdeclared(varname2), casted);
 	arrmap[varname] = std::vector<T>({casted});
 	return respons;
 }
 
-short manageCreateHightLevelArray(std::istringstream& iss, const std::string& varname, const std::string& type_str){
+ParseStatus manageCreateHightLevelArray(std::istringstream& iss, const std::string& varname, const std::string& type_str){
 	std::string varname2;
-	InterpretatorKeyword type = InterpretatorKeyword::_from_string(may_keyword_change(type_str).c_str());
+	InterpretatorKeyword type = parseKeyword((type_str).c_str());
 	iss >> varname2;
 	switch(type){
 	case InterpretatorKeyword::int_:
@@ -294,7 +306,7 @@ short manageCreateHightLevelArray(std::istringstream& iss, const std::string& va
 	return ParseStatus::PARSE_ERROR;
 }
 
-short manageCreateHightLevelVar(std::istringstream& iss, const InterpretatorKeyword& operation){
+ParseStatus manageCreateHightLevelVar(std::istringstream& iss, const InterpretatorKeyword& operation){
 	std::string varname, val;
 	std::string svar;
 	iss >> varname >> val;
@@ -483,7 +495,7 @@ std::string tryParse(const std::string& varname, bool include_arrs){
 	throw std::invalid_argument("Cant interpretate argument.");
 }
 
-short sumArrs(std::istringstream& iss, const std::string& varname){
+ParseStatus sumArrs(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isiarr(varname)){
@@ -511,7 +523,7 @@ short sumArrs(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 }
 
-short sumVar(std::istringstream& iss, const std::string& varname){
+ParseStatus sumVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -526,7 +538,7 @@ short sumVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short subArrs(std::istringstream& iss, const std::string& varname){
+ParseStatus subArrs(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isiarr(varname)){
@@ -554,7 +566,7 @@ short subArrs(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 }
 
-short subVar(std::istringstream& iss, const std::string& varname){
+ParseStatus subVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -570,7 +582,7 @@ short subVar(std::istringstream& iss, const std::string& varname){
 }
 
 
-short mulArrs(std::istringstream& iss, const std::string& varname){
+ParseStatus mulArrs(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isiarr(varname)){
@@ -598,7 +610,7 @@ short mulArrs(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 }
 
-short mulVar(std::istringstream& iss, const std::string& varname){
+ParseStatus mulVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -614,7 +626,7 @@ short mulVar(std::istringstream& iss, const std::string& varname){
 }
 
 
-short divArrs(std::istringstream& iss, const std::string& varname){
+ParseStatus divArrs(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isiarr(varname)){
@@ -642,7 +654,7 @@ short divArrs(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 }
 
-short divVar(std::istringstream& iss, const std::string& varname){
+ParseStatus divVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -657,7 +669,7 @@ short divVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short powVar(std::istringstream& iss, const std::string& varname){
+ParseStatus powVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -672,7 +684,7 @@ short powVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short sqrtVar(std::istringstream& iss, const std::string& varname){
+ParseStatus sqrtVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isdouble(varname)){
@@ -686,7 +698,7 @@ short sqrtVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short cnkVars(std::istringstream& iss, const std::string& varname){
+ParseStatus cnkVars(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isarray(varname) || vars::isarray(varname2)){
@@ -704,7 +716,7 @@ short cnkVars(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short sinVars(const std::string& varname){
+ParseStatus sinVars(const std::string& varname){
 	if(vars::isarray(varname)){
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 	}
@@ -712,7 +724,7 @@ short sinVars(const std::string& varname){
 		vars::vars[varname] = interpretator_math::sinn(vars::vars[varname]);
 	}else if(vars::isfloat(varname)){
 		vars::fvars[varname] = interpretator_math::sinn(vars::fvars[varname]);
-	}else if(vars::isdouble){
+	}else if(vars::isdouble(varname)){
 		vars::dvars[varname] = interpretator_math::sinn(vars::dvars[varname]);
 	}else{
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
@@ -720,7 +732,7 @@ short sinVars(const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short cosVars(const std::string& varname){
+ParseStatus cosVars(const std::string& varname){
 	if(vars::isarray(varname)){
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 	}
@@ -728,7 +740,7 @@ short cosVars(const std::string& varname){
 		vars::vars[varname] = interpretator_math::cosn(vars::vars[varname]);
 	}else if(vars::isfloat(varname)){
 		vars::fvars[varname] = interpretator_math::cosn(vars::fvars[varname]);
-	}else if(vars::isdouble){
+	}else if(vars::isdouble(varname)){
 		vars::dvars[varname] = interpretator_math::cosn(vars::dvars[varname]);
 	}else{
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
@@ -736,7 +748,7 @@ short cosVars(const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short expVars(const std::string& varname){
+ParseStatus expVars(const std::string& varname){
 	if(vars::isarray(varname)){
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 	}
@@ -744,7 +756,7 @@ short expVars(const std::string& varname){
 		vars::vars[varname] = interpretator_math::expn(vars::vars[varname]);
 	}else if(vars::isfloat(varname)){
 		vars::fvars[varname] = interpretator_math::expn(vars::fvars[varname]);
-	}else if(vars::isdouble){
+	}else if(vars::isdouble(varname)){
 		vars::dvars[varname] = interpretator_math::expn(vars::dvars[varname]);
 	}else{
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
@@ -752,7 +764,7 @@ short expVars(const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short lnVars(const std::string& varname){
+ParseStatus lnVars(const std::string& varname){
 	if(vars::isarray(varname)){
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 	}
@@ -760,7 +772,7 @@ short lnVars(const std::string& varname){
 		vars::vars[varname] = interpretator_math::lnn(vars::vars[varname]);
 	}else if(vars::isfloat(varname)){
 		vars::fvars[varname] = interpretator_math::lnn(vars::fvars[varname]);
-	}else if(vars::isdouble){
+	}else if(vars::isdouble(varname)){
 		vars::dvars[varname] = interpretator_math::lnn(vars::dvars[varname]);
 	}else{
 		return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
@@ -768,7 +780,7 @@ short lnVars(const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short assignVar(std::istringstream& iss, const std::string& varname){
+ParseStatus assignVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -783,7 +795,7 @@ short assignVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short modVar(std::istringstream& iss, const std::string& varname){
+ParseStatus modVar(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -798,7 +810,7 @@ short modVar(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short modArrs(std::istringstream& iss, const std::string& varname){
+ParseStatus modArrs(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	int varvalue2 = tryParse<int>(varname2);
@@ -812,7 +824,7 @@ short modArrs(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short setArrayVal(std::istringstream& iss, const std::string& varname){
+ParseStatus setArrayVal(std::istringstream& iss, const std::string& varname){
 	std::string index_str, value_str;
 	iss >> index_str >> value_str;
 	int index = tryParse<int>(index_str);
@@ -832,7 +844,7 @@ short setArrayVal(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short getArrayVal(std::istringstream& iss, const std::string& varname){
+ParseStatus getArrayVal(std::istringstream& iss, const std::string& varname){
 	std::string index_str, varname_str;
 	iss >> index_str >> varname_str;
 	int index = tryParse<int>(index_str);
@@ -888,7 +900,7 @@ short getArrayVal(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 }
 
-short popArray(std::istringstream& iss, const std::string& varname){
+ParseStatus popArray(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isnotdeclared(varname2)){
@@ -946,7 +958,7 @@ short popArray(std::istringstream& iss, const std::string& varname){
 
 }
 
-short appendArray(std::istringstream& iss, const std::string& varname){
+ParseStatus appendArray(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isiarr(varname)){
@@ -967,7 +979,7 @@ short appendArray(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::OK;
 }
 
-short lenghtArray(std::istringstream& iss, const std::string& varname){
+ParseStatus lenghtArray(std::istringstream& iss, const std::string& varname){
 	std::string varname2;
 	iss >> varname2;
 	if(vars::isint(varname)){
@@ -992,9 +1004,9 @@ short lenghtArray(std::istringstream& iss, const std::string& varname){
 	return ParseStatus::UNHANDLED_OPERATION_WITH_TYPES;
 }
 
-short manageHightLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
+ParseStatus manageHightLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
 	std::string varname1, varname2;
-	short status;
+	ParseStatus status;
 	iss >> varname1;
 	if(vars::isnotdeclared(varname1)){
 		return ParseStatus::UD_OPERATION;
@@ -1211,10 +1223,10 @@ short manageHightLevelFunc(std::istringstream& iss, InterpretatorKeyword operati
 	return ParseStatus::UD_OPERATION;
 }
 
-short manageRandomLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
+ParseStatus manageRandomLevelFunc(std::istringstream& iss, InterpretatorKeyword operation){
 	std::string varname, varname2, varname3;
 	double varvalue2, varvalue3;
-	short status;
+	ParseStatus status;
 	iss >> varname >> varname2;
 	if(vars::isnotdeclared(varname)){
 		return ParseStatus::UD_OPERATION;
@@ -1298,7 +1310,7 @@ void manageTimedelta(std::istringstream& iss, InterpretatorKeyword operation){
 	}
 }
 
-short manageReadFileFunc(std::istringstream& iss){
+ParseStatus manageReadFileFunc(std::istringstream& iss){
 	std::string varname1, varname2;
 	iss >> varname1 >> varname2;
 	std::string varvalue1;
@@ -1315,7 +1327,7 @@ short manageReadFileFunc(std::istringstream& iss){
 	return ParseStatus::OK;
 }
 
-short binaryArrayToInt(std::istringstream& iss){
+ParseStatus binaryArrayToInt(std::istringstream& iss){
 	std::string varname1, varname2, varname3;
 	iss >> varname1 >> varname2 >> varname3;
 	int start = tryParse<int>(varname2);
@@ -1327,7 +1339,7 @@ short binaryArrayToInt(std::istringstream& iss){
 	return ParseStatus::OK;
 }
 
-short manageWriteFileFunc(std::istringstream& iss){
+ParseStatus manageWriteFileFunc(std::istringstream& iss){
 	std::string varname1, varname2;
 	iss >> varname1 >> varname2;
 	std::string varvalue1 = tryParse<std::string>(varname1);
@@ -1343,20 +1355,19 @@ short manageWriteFileFunc(std::istringstream& iss){
 	return ParseStatus::OK;
 }
 
-short interpretline(std::string& progline){
+ParseStatus interpretline(std::string& progline){
 	std::istringstream iss{progline};
 	std::string operation_str, label, block;
-	short respons;
+	ParseStatus respons;
 
 	iss >> operation_str;
-	
-	operation_str = may_keyword_change(operation_str);
-	InterpretatorKeyword operation = InterpretatorKeyword::_from_string(operation_str.c_str());
+
+	InterpretatorKeyword operation = parseKeyword(operation_str);
 	if(!flags::watchblock){
 		switch(operation){
 			case InterpretatorKeyword::hajimaru:
 			case InterpretatorKeyword::label:
-				if(vars::isnotdeclared)
+				break;
 			
 			case InterpretatorKeyword::do_:
 			case InterpretatorKeyword::break_:
@@ -1536,7 +1547,7 @@ void moderniseProgramLine(std::string& program_line, int line_number, bool& skip
 }
 
 void parseError(ParseStatus status){
-	if(status == ParseStatus::OK || ParseStatus::END){
+	if(status == ParseStatus::OK || status == ParseStatus::END){
 		return;
 	}
 	switch(status){

@@ -1,4 +1,3 @@
-
 #include "interpretator-math.hpp"
 
 double interpretator_math::powerab(double a, int b){return std::pow(a, b);}
@@ -69,7 +68,7 @@ double interpretator_math::lnn(double n) {
 
 // Среднее арифемтическое
 double interpretator_math::calculateAverage(const std::string& vectorname) {
-    if (vars::darrs[vectorname].empty()) {
+    if (vars::darrs.at(vectorname).empty()) {
         throw std::invalid_argument("Vector is empty. Cannot calculate average.");
     }
 
@@ -93,7 +92,7 @@ double interpretator_math::calcdisp(const std::string& vectorname) {
 	double mean = interpretator_math::calculateAverage(vectorname);
 	double n = vars::darrs[vectorname].size();
     double sum = 0.0;
-    for (const double& num : vars::darrs[vectorname]) {
+    for (const double& num : vars::darrs.at(vectorname)) {
         sum += (num - mean)*(num - mean);
     }
 
